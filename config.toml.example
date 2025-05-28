@@ -14,6 +14,15 @@ iterations = 10
 # Optional: Additional arguments for compilation/execution (e.g., for a test suite)
 # args = "test --verbose"
 
+# Evolution Mode Configuration (Alpha Evolve style)
+# Uncomment these lines to enable code evolution mode
+# enable_evolution = true
+# evolution_file_path = "examples/sorting_evolution.c"
+
+# Test Command Configuration
+# Uncomment and set the test command to run after each evolution step
+# test_command = "gcc -o /tmp/test_evolved {file} && /tmp/test_evolved"
+
 # The following parameters are optional and will use defaults if not specified
 max_response_size = 10240
 max_prompt_size = 4096

@@ -1,5 +1,9 @@
 #include "beta_evolve.h"
 
+// Forward declarations for evolution functions
+extern int write_evolution_file(const char *file_path, const char *content);
+extern test_result_t run_custom_test(const char *test_command, const char *file_path, config_t *config);
+
 // Execute a shell command and capture output
 int execute_command(const char* command, char* output, size_t output_size) {
     FILE* pipe = popen(command, "r");
@@ -228,8 +232,36 @@ void update_solution_with_testing(conversation_t *conv, const char *reasoning_re
                     end--;
                 }
                 
-                // Test the generated code
-                test_result_t test_result = test_generated_code(conv->current_solution, conv->problem_description, conv->config);
+                // Test the generated code - use evolution mode if enabled
+                test_result_t test_result = {0};
+                
+                if (conv->config->enable_evolution && strlen(conv->config->evolution_file_path) > 0 && strlen(conv->config->test_command) > 0) {
+                    // Evolution mode: Write to file and use custom test command
+                    log_message(conv->config, VERBOSITY_DEBUG, "%s🧬 Testing evolved code with custom command...%s\n", C_INFO, C_RESET);
+                    
+                    if (write_evolution_file(conv->config->evolution_file_path, conv->current_solution) == 0) {
+                        // Create evolved file path for testing
+                        char evolved_file_path[1024];
+                        snprintf(evolved_file_path, sizeof(evolved_file_path), "%s.evolved", conv->config->evolution_file_path);
+                        
+                        test_result = run_custom_test(conv->config->test_command, evolved_file_path, conv->config);
+                    } else {
+                        // Failed to write file, create error result
+                        test_result.error_message = malloc(conv->config->max_response_size);
+                        test_result.output = malloc(conv->config->max_response_size);
+                        if (test_result.error_message && test_result.output) {
+                            snprintf(test_result.error_message, conv->config->max_response_size, 
+                                    "Failed to write evolved code to file: %s.evolved", conv->config->evolution_file_path);
+                            memset(test_result.output, 0, conv->config->max_response_size);
+                            test_result.syntax_ok = 0;
+                            test_result.compilation_ok = 0;
+                            test_result.execution_ok = 0;
+                        }
+                    }
+                } else {
+                    // Standard mode: Use built-in testing
+                    test_result = test_generated_code(conv->current_solution, conv->problem_description, conv->config);
+                }
                 
                 // Clean up previous test result
                 cleanup_test_result(&conv->last_test_result);

@@ -6,6 +6,34 @@ int run_collaboration(const char *problem, config_t *config) {
     conversation_t conv;
     init_conversation(&conv, problem, config);
     
+    // Initialize evolution if enabled
+    if (config->enable_evolution && strlen(config->evolution_file_path) > 0) {
+        log_message(config, VERBOSITY_NORMAL, "%s🧬 Evolution mode enabled for file: %s%s\n", 
+                   C_INFO, config->evolution_file_path, C_RESET);
+        
+        // Read the initial evolution file
+        char *file_content = read_evolution_file(config->evolution_file_path);
+        if (file_content) {
+            // Parse evolution regions
+            parse_evolution_regions(&conv.evolution, file_content);
+            
+            if (conv.evolution.region_count > 0) {
+                log_message(config, VERBOSITY_NORMAL, "%s🧬 Found %d evolution regions%s\n", 
+                           C_INFO, conv.evolution.region_count, C_RESET);
+                conv.evolution.evolution_enabled = 1;
+                
+                // Set the current solution to the file content
+                if (strlen(file_content) < config->max_code_size) {
+                    strcpy(conv.current_solution, file_content);
+                }
+            }
+            free(file_content);
+        } else {
+            log_message(config, VERBOSITY_NORMAL, "%s❌ Failed to read evolution file: %s%s\n", 
+                       C_ERROR, config->evolution_file_path, C_RESET);
+        }
+    }
+    
     print_header("Beta Evolve: Starting dual-AI collaboration");
     log_message(config, VERBOSITY_NORMAL, "%sProblem:%s %s\n\n", C_EMPHASIS, C_RESET, problem);
     
@@ -125,6 +153,20 @@ int run_collaboration(const char *problem, config_t *config) {
             
             // Update solution with testing
             update_solution_with_testing(&conv, cleaned_reasoning_response);
+            
+            // Run code evolution if evolution markers are detected
+            if (conv.current_solution && strstr(conv.current_solution, EVOLUTION_MARKER_START)) {
+                log_message(config, VERBOSITY_NORMAL, "%s🧬 Evolution markers detected - running code evolution...%s\n", 
+                           C_INFO, C_RESET);
+                evolve_code_regions(&conv, &conv.evolution);
+                
+                if (config->verbosity >= VERBOSITY_VERBOSE) {
+                    log_message(config, VERBOSITY_VERBOSE, 
+                               "%s🧬 Evolution status: %d regions, generation %d%s\n",
+                               C_INFO, conv.evolution.region_count, 
+                               conv.evolution.current_generation, C_RESET);
+                }
+            }
             
             // Cleanup
             free(cleaned_fast_response);

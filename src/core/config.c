@@ -14,6 +14,9 @@ int load_config(config_t *config, const char *config_file) {
     // Initialize new fields
     memset(config->problem_prompt_file, 0, sizeof(config->problem_prompt_file));
     memset(config->args, 0, sizeof(config->args));
+    memset(config->evolution_file_path, 0, sizeof(config->evolution_file_path));
+    memset(config->test_command, 0, sizeof(config->test_command));
+    config->enable_evolution = 0;
     config->loaded_problem_prompt = NULL;
     
     FILE *file = fopen(config_file, "r");
@@ -200,6 +203,38 @@ int load_config(config_t *config, const char *config_file) {
     } else {
         strcpy(config->args, "");
         if (args.ok) free(args.u.s);
+    }
+
+    // Load evolution configuration
+    toml_datum_t evolution_file_path = toml_string_in(toml, "evolution_file_path");
+    if (evolution_file_path.ok && strlen(evolution_file_path.u.s) > 0) {
+        strcpy(config->evolution_file_path, evolution_file_path.u.s);
+        free(evolution_file_path.u.s);
+        printf("Info: Evolution file: '%s'\n", config->evolution_file_path);
+    } else {
+        strcpy(config->evolution_file_path, "");
+        if (evolution_file_path.ok) free(evolution_file_path.u.s);
+    }
+
+    toml_datum_t test_command = toml_string_in(toml, "test_command");
+    if (test_command.ok && strlen(test_command.u.s) > 0) {
+        strcpy(config->test_command, test_command.u.s);
+        free(test_command.u.s);
+        printf("Info: Test command: '%s'\n", config->test_command);
+    } else {
+        strcpy(config->test_command, "");
+        if (test_command.ok) free(test_command.u.s);
+    }
+
+    toml_datum_t enable_evolution = toml_bool_in(toml, "enable_evolution");
+    if (enable_evolution.ok) {
+        config->enable_evolution = enable_evolution.u.b;
+    } else {
+        config->enable_evolution = 0; // Default to disabled
+    }
+
+    if (config->enable_evolution) {
+        printf("Info: Evolution mode enabled\n");
     }
 
     toml_free(toml);

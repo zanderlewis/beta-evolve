@@ -1,7 +1,7 @@
 # Beta Evolve
 A dual-AI collaborative programming system that uses two specialized AI agents to iteratively solve complex programming problems. Beta Evolve combines the speed of rapid prototyping with the depth of analytical reasoning to generate high-quality, robust C code solutions.
 
-It is designed to create files from scratch that solve real-world problems, mathematical challenges, or algorithmic tasks, with a focus on error handling, optimization, and comprehensive testing.
+It is designed to both create files from scratch and evolve existing code to solve real-world problems, mathematical challenges, or algorithmic tasks, with a focus on error handling, optimization, and comprehensive testing.
 
 ## Overview
 Beta Evolve employs a novel two-agent approach to code generation:
@@ -12,13 +12,16 @@ The agents collaborate through multiple iterations, with each cycle improving co
 
 ## Features
 - **Dual-AI Architecture**: Two specialized agents with complementary strengths
+- **Code Evolution Mode**: Evolve specific regions of existing code files using evolution markers
 - **Iterative Refinement**: Continuous improvement through multiple collaboration cycles
 - **Comprehensive Testing**: Automatic code compilation, execution, and validation
+- **Custom Test Integration**: Configurable test commands for evolution validation
 - **Flexible AI Backend**: Supports OpenAI API, local models, or custom endpoints
 - **Local AI Server**: Built-in Flask server for running HuggingFace models locally
 - **Configurable Output**: Multiple verbosity levels and colored terminal output
 - **Error Recovery**: Automatic error detection and fixing with intelligent retry logic
 - **Solution Persistence**: Saves final solutions with timestamps and problem descriptions
+- **Cross-Platform Support**: Works on Windows, macOS, and Linux
 
 ## Quick Start
 
@@ -47,8 +50,8 @@ cp config.toml.example config.toml
 Edit `config.toml` with your preferred settings:
 ```toml
 # API Configuration
-fast_model_api_key = "your-openai-api-key"
-reasoning_model_api_key = "your-openai-api-key"
+fast_model_api_key = "your-api-key"
+reasoning_model_api_key = "your-api-key"
 fast_model_endpoint = "https://api.openai.com/v1/chat/completions"
 reasoning_model_endpoint = "https://api.openai.com/v1/chat/completions"
 fast_model_name = "gpt-3.5-turbo"
@@ -58,14 +61,7 @@ iterations = 10
 
 ### 3. Basic Usage
 ```bash
-# Solve a problem from command line
-./beta_evolve --problem "Implement a binary search algorithm in C with comprehensive testing"
-
-# Use a problem file
-./beta_evolve --prompt-file example_problem.prompt
-
-# Increase verbosity to see AI responses
-./beta_evolve --verbose --problem "Your problem description here"
+./beta_evolve --help  # Show help message
 ```
 
 ## Usage Examples
@@ -126,6 +122,11 @@ fast_model_api_key = ""  # No API key needed for local server
 - `reasoning_model_name`: Model name for reasoning agent
 - API keys for authenticated services
 
+### Evolution Mode Settings
+- `enable_evolution`: Enable code evolution mode (true/false)
+- `evolution_file_path`: Path to the C file containing evolution markers
+- `test_command`: Custom command to test evolved code (use `{file}` placeholder)
+
 ### Execution Options
 - `args`: Additional compilation/execution arguments
 - `problem_prompt_file`: Default problem file to load
@@ -142,31 +143,8 @@ All interactions are logged to `beta-evolve.log` for debugging and analysis.
 
 ## Architecture
 
-### Project Structure
-```
-beta-evolve/
-├── src/
-│   ├── main.c              # Main application entry point
-│   ├── core/               # Core functionality
-│   │   ├── conversation.c  # Agent conversation management
-│   │   ├── config.c        # Configuration handling
-│   │   └── testing.c       # Code testing and validation
-│   ├── api/                # AI API integration
-│   │   └── ai.c           # AI model communication
-│   └── utils/              # Utility functions
-│       ├── colors.c        # Terminal color support
-│       ├── json.c          # JSON parsing
-│       ├── logging.c       # Logging system
-│       └── ...
-├── include/                # Header files
-├── prompts/                # Example problem prompts
-├── templates/              # HTML templates for web interface
-├── server.py              # Local AI server
-└── config.toml.example    # Configuration template
-```
-
-### Agent Workflow
-1. **Problem Analysis**: Both agents receive the problem description
+### Dual-Agent Workflow
+1. **Problem Analysis**: Both agents receive the problem description or existing code file
 2. **Fast Agent Turn**: Generates rapid prototype focusing on core functionality
 3. **Code Testing**: Automatic compilation and execution validation
 4. **Reasoning Agent Turn**: Analyzes and refines the code
@@ -174,7 +152,24 @@ beta-evolve/
 6. **Iterative Improvement**: Repeat until error-free solution is achieved
 7. **Solution Persistence**: Save final working solution with metadata
 
+### Evolution Mode Workflow
+When evolution mode is enabled:
+1. **Code Parsing**: Parse existing code file for evolution markers (`// BETA EVOLVE START/END`)
+2. **Region Identification**: Identify specific code regions to evolve
+3. **Targeted Evolution**: Apply AI improvements only to marked regions
+4. **Custom Testing**: Run user-defined test commands for validation
+5. **Generation Tracking**: Track evolution generations and fitness scores
+6. **Selective Improvement**: Preserve working code while evolving specific areas
+
 ## Advanced Features
+
+### Code Evolution System
+Beta Evolve can evolve existing code files using special markers:
+- **Evolution Markers**: Use `// BETA EVOLVE START` and `// BETA EVOLVE END` to mark evolvable regions
+- **Selective Evolution**: Only marked code regions are modified, preserving the rest
+- **Custom Testing**: Configure test commands to validate evolved code
+- **Generation Tracking**: Monitor evolution progress and fitness scores
+- **Rollback Safety**: Original code is preserved while new versions are generated
 
 ### Error Recovery
 Beta Evolve automatically detects and recovers from:
@@ -187,12 +182,14 @@ Beta Evolve automatically detects and recovers from:
 - Runtime execution with timeout protection
 - Memory leak detection
 - Comprehensive test case validation
+- Custom test command support for evolution mode
 
 ### Extensibility
 - Pluggable AI backends (OpenAI, local models, custom APIs)
 - Configurable agent prompts and behavior
 - Custom testing frameworks
 - Problem template system
+- Evolution marker customization
 
 ## Contributing
 1. Fork the repository
@@ -204,17 +201,11 @@ Beta Evolve automatically detects and recovers from:
 ## Dependencies
 ### System Requirements
 - GCC compiler with C99 support
-- libcjson library
-- pkg-config
+- libcjson library (install via `brew install libcjson` on macOS)
+- pkg-config (install via `brew install pkg-config` on macOS)
 - Make build system
 
 ### Optional Dependencies
 - Python 3.7+ (for local AI server)
-- HuggingFace Transformers (for local models)
-- Flask (for web interface)
-
-## Support
-- Check the `beta-evolve.log` file for detailed debugging information
-- Use `--verbose` or `--debug` flags for more detailed output
-- Refer to example prompts in the `prompts/` directory
-- Review the configuration options in `config.toml.example`
+- HuggingFace Transformers (for local models): `pip install transformers torch`
+- Flask (for web interface): `pip install flask`

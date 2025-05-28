@@ -78,6 +78,9 @@ void init_conversation(conversation_t *conv, const char *problem, config_t *conf
     if (conv->last_test_result.output) {
         memset(conv->last_test_result.output, 0, config->max_response_size);
     }
+    
+    // Initialize code evolution context
+    init_code_evolution(&conv->evolution);
 }
 
 // Add message to conversation
@@ -139,6 +142,18 @@ void print_conversation(const conversation_t *conv) {
 char* generate_agent_prompt(const conversation_t *conv, agent_type_t agent) {
     if (!conv || !conv->config) return NULL;
     
+    // Check if the current solution contains evolution markers
+    int has_evolution_markers = 0;
+    if (conv->current_solution && strlen(conv->current_solution) > 0) {
+        has_evolution_markers = (strstr(conv->current_solution, EVOLUTION_MARKER_START) != NULL);
+    }
+    
+    // Use evolution-specific prompt if markers are detected
+    if (has_evolution_markers) {
+        return generate_evolution_prompt(conv, &conv->evolution, agent);
+    }
+    
+    // Fall back to regular prompt generation
     dstring_t* prompt = dstring_create(conv->config->max_prompt_size * 2);
     if (!prompt) return NULL;
     
@@ -271,6 +286,9 @@ void cleanup_conversation(conversation_t *conv) {
         conv->last_test_result.output = NULL;
     }
     
+    // Cleanup code evolution context
+    cleanup_code_evolution(&conv->evolution);
+
     // Reset other fields
     conv->iterations = 0;
     conv->message_count = 0;

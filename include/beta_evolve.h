@@ -36,6 +36,32 @@ typedef enum {
     AGENT_REASONING
 } agent_type_t;
 
+// Code evolution structures and constants
+#define EVOLUTION_MARKER_START "// BETA EVOLVE START"
+#define EVOLUTION_MARKER_END "// BETA EVOLVE END"
+#define MAX_EVOLUTION_REGIONS 50
+#define MAX_EVOLUTION_DESCRIPTION 256
+
+// Evolution region structure
+typedef struct {
+    char *content;                               // Current content in this region
+    char description[MAX_EVOLUTION_DESCRIPTION]; // Description/identifier for this region
+    int start_line;                              // Line number where region starts
+    int end_line;                                // Line number where region ends
+    int generation;                              // Evolution generation number
+    double fitness_score;                        // Performance/correctness score
+} evolution_region_t;
+
+// Code evolution context
+typedef struct {
+    evolution_region_t regions[MAX_EVOLUTION_REGIONS];
+    int region_count;
+    char *base_code;                             // Non-evolvable skeleton code
+    int total_generations;                       // Total evolution cycles
+    int current_generation;                      // Current evolution generation
+    int evolution_enabled;                       // Whether evolution is active
+} code_evolution_t;
+
 // Configuration (must be defined before conversation_t)
 typedef struct {
     char fast_model_api_key[256];
@@ -55,6 +81,10 @@ typedef struct {
     char *loaded_problem_prompt;  // Dynamically loaded problem description
     // Additional arguments for compilation/execution
     char args[1024];
+    // Evolution configuration
+    char evolution_file_path[512];       // Path to the code file to evolve
+    char test_command[1024];             // Custom command to test the evolved code
+    int enable_evolution;                // Enable/disable evolution mode
     // Output control
     int verbosity;
     int use_colors;
@@ -86,6 +116,7 @@ typedef struct {
     int iterations;                         // Current iteration number
     test_result_t last_test_result;         // Last test result for the current solution
     config_t *config;                       // Reference to config for limits
+    code_evolution_t evolution;             // Code evolution context
 } conversation_t;
 
 // Include AI and config headers after types are defined
@@ -132,5 +163,20 @@ void log_iteration_start(config_t *config, int iteration, int total_iterations);
 void log_code_status(config_t *config, const test_result_t* test_result);
 void log_ai_interaction(config_t *config, agent_type_t agent, const char* prompt, const char* response);
 void log_error_details(config_t *config, const char* error_message);
+
+// Code evolution functions
+void init_code_evolution(code_evolution_t *evolution);
+void cleanup_code_evolution(code_evolution_t *evolution);
+int parse_evolution_regions(code_evolution_t *evolution, const char *code);
+char* assemble_evolved_code(const code_evolution_t *evolution, const char *original_code);
+int extract_evolution_region_content(const char *code, const char *region_desc, char **content);
+void update_evolution_region(code_evolution_t *evolution, const char *region_desc, const char *new_content);
+double evaluate_evolution_fitness(const char *file_path, config_t *config);
+char* generate_evolution_prompt(const conversation_t *conv, const code_evolution_t *evolution, agent_type_t agent);
+void evolve_code_regions(conversation_t *conv, code_evolution_t *evolution);
+// File-based evolution functions
+char* read_evolution_file(const char *file_path);
+int write_evolution_file(const char *file_path, const char *content);
+test_result_t run_custom_test(const char *test_command, const char *file_path, config_t *config);
 
 #endif // BETA_EVOLVE_H

@@ -1,0 +1,15 @@
+Implement a NASA-grade binary search algorithm in C.
+
+The algorithm should:
+1. Take a sorted array and a target value as input
+2. Return the index of the target value if found, or -1 if not found
+3. Use the divide and conquer approach
+4. Include proper error handling for edge cases
+5. Include a main function with test cases
+
+Requirements:
+- The function should be named `binary_search`
+- Handle empty arrays gracefully
+- Include comprehensive test cases that verify correctness
+- Use efficient integer arithmetic to avoid overflow
+- Add comments explaining the algorithm logic

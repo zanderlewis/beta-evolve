@@ -1,0 +1,47 @@
+# Build files
+beta_evolve
+obj/
+*.o
+*.a
+*.so
+*.dylib
+
+# Generated solutions
+solution_*.*
+
+# Evolve files
+*.evolved
+
+# Configuration
+config.toml
+
+# Prompt files
+prompts/
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+conversation_*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Virtual environments
+venv/
+.venv/

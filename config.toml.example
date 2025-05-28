@@ -1,0 +1,21 @@
+# Beta Evolve Configuration
+
+fast_model_api_key = "your-key-here"
+reasoning_model_api_key = "your-key-here"
+fast_model_endpoint = "https://localhost:5000/v1/chat/completions"
+reasoning_model_endpoint = "https://localhost:5000/v1/chat/completions"
+fast_model_name = "gpt-3.5-turbo"
+reasoning_model_name = "gpt-4"
+iterations = 10
+
+# Optional: Load problem description from a file instead of command line
+# problem_prompt_file = "my_problem.prompt"
+
+# Optional: Additional arguments for compilation/execution (e.g., for a test suite)
+# args = "test --verbose"
+
+# The following parameters are optional and will use defaults if not specified
+max_response_size = 10240
+max_prompt_size = 4096
+max_conversation_turns = 10
+max_code_size = 8192

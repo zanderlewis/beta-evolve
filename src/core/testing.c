@@ -57,7 +57,7 @@ test_result_t test_generated_code(const char* code_content, const char* problem_
     
     // Create a temporary file with the generated code
     char temp_filename[512];
-    snprintf(temp_filename, sizeof(temp_filename), "%s/beta_evolve_test_%ld.c", temp_dir, time(NULL));
+    snprintf(temp_filename, sizeof(temp_filename), "%s/test.c", temp_dir);
     
     FILE* temp_file = fopen(temp_filename, "w");
     if (!temp_file) {
@@ -89,7 +89,7 @@ test_result_t test_generated_code(const char* code_content, const char* problem_
         // Test 2: Simple compilation check
         char compile_command[1024];
         char binary_name[512];
-        snprintf(binary_name, sizeof(binary_name), "%s/beta_evolve_test_%ld", temp_dir, time(NULL));
+        snprintf(binary_name, sizeof(binary_name), "%s/test", temp_dir);
         
         // Include additional args from config if specified
         if (strlen(config->args) > 0) {
@@ -232,30 +232,65 @@ void update_solution_with_testing(conversation_t *conv, const char *reasoning_re
                     end--;
                 }
                 
-                // Test the generated code - use evolution mode if enabled
+                // Test the generated code - use custom test command if specified, otherwise built-in testing
                 test_result_t test_result = {0};
                 
-                if (conv->config->enable_evolution && strlen(conv->config->evolution_file_path) > 0 && strlen(conv->config->test_command) > 0) {
-                    // Evolution mode: Write to file and use custom test command
-                    log_message(conv->config, VERBOSITY_DEBUG, "%s🧬 Testing evolved code with custom command...%s\n", C_INFO, C_RESET);
+                if (strlen(conv->config->test_command) > 0) {
+                    // Custom test command mode
+                    log_message(conv->config, VERBOSITY_DEBUG, "%s🧪 Testing code with custom command...%s\n", C_INFO, C_RESET);
                     
-                    if (write_evolution_file(conv->config->evolution_file_path, conv->current_solution) == 0) {
-                        // Create evolved file path for testing
-                        char evolved_file_path[1024];
-                        snprintf(evolved_file_path, sizeof(evolved_file_path), "%s.evolved", conv->config->evolution_file_path);
-                        
-                        test_result = run_custom_test(conv->config->test_command, evolved_file_path, conv->config);
+                    if (conv->config->enable_evolution && strlen(conv->config->evolution_file_path) > 0) {
+                        // Evolution mode: Write to evolved file and test
+                        if (write_evolution_file(conv->config->evolution_file_path, conv->current_solution) == 0) {
+                            // Create evolved file path for testing
+                            char evolved_file_path[1024];
+                            snprintf(evolved_file_path, sizeof(evolved_file_path), "%s.evolved", conv->config->evolution_file_path);
+                            
+                            test_result = run_custom_test(conv->config->test_command, evolved_file_path, conv->config);
+                        } else {
+                            // Failed to write file, create error result
+                            test_result.error_message = malloc(conv->config->max_response_size);
+                            test_result.output = malloc(conv->config->max_response_size);
+                            if (test_result.error_message && test_result.output) {
+                                snprintf(test_result.error_message, conv->config->max_response_size, 
+                                        "Failed to write evolved code to file: %s.evolved", conv->config->evolution_file_path);
+                                memset(test_result.output, 0, conv->config->max_response_size);
+                                test_result.syntax_ok = 0;
+                                test_result.compilation_ok = 0;
+                                test_result.execution_ok = 0;
+                            }
+                        }
                     } else {
-                        // Failed to write file, create error result
-                        test_result.error_message = malloc(conv->config->max_response_size);
-                        test_result.output = malloc(conv->config->max_response_size);
-                        if (test_result.error_message && test_result.output) {
-                            snprintf(test_result.error_message, conv->config->max_response_size, 
-                                    "Failed to write evolved code to file: %s.evolved", conv->config->evolution_file_path);
-                            memset(test_result.output, 0, conv->config->max_response_size);
-                            test_result.syntax_ok = 0;
-                            test_result.compilation_ok = 0;
-                            test_result.execution_ok = 0;
+                        // Standard mode: Write to temporary file and test
+                        const char* temp_dir = getenv("TMPDIR");
+                        if (!temp_dir) {
+                            temp_dir = "/tmp";
+                        }
+                        
+                        char temp_file_path[1024];
+                        snprintf(temp_file_path, sizeof(temp_file_path), "%s/test.c", temp_dir);
+                        
+                        FILE* temp_file = fopen(temp_file_path, "w");
+                        if (temp_file) {
+                            fprintf(temp_file, "%s\n", conv->current_solution);
+                            fclose(temp_file);
+                            
+                            test_result = run_custom_test(conv->config->test_command, temp_file_path, conv->config);
+                            
+                            // Clean up temporary file
+                            unlink(temp_file_path);
+                        } else {
+                            // Failed to write temp file, create error result
+                            test_result.error_message = malloc(conv->config->max_response_size);
+                            test_result.output = malloc(conv->config->max_response_size);
+                            if (test_result.error_message && test_result.output) {
+                                snprintf(test_result.error_message, conv->config->max_response_size, 
+                                        "Failed to create temporary file for custom testing");
+                                memset(test_result.output, 0, conv->config->max_response_size);
+                                test_result.syntax_ok = 0;
+                                test_result.compilation_ok = 0;
+                                test_result.execution_ok = 0;
+                            }
                         }
                     }
                 } else {

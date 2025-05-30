@@ -20,8 +20,9 @@ iterations = 10
 # evolution_file_path = "examples/sorting_evolution.c"
 
 # Test Command Configuration
-# Uncomment and set the test command to run after each evolution step
-# test_command = "gcc -o /tmp/test_evolved {file} && /tmp/test_evolved"
+# Uncomment and set a custom test command to override the built-in testing
+# The {file} placeholder will be replaced with the actual file path
+# test_command = "gcc -o /tmp/test {file} && /tmp/test"
 
 # The following parameters are optional and will use defaults if not specified
 max_response_size = 10240

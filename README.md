@@ -15,7 +15,7 @@ The agents collaborate through multiple iterations, with each cycle improving co
 - **Code Evolution Mode**: Evolve specific regions of existing code files using evolution markers
 - **Iterative Refinement**: Continuous improvement through multiple collaboration cycles
 - **Comprehensive Testing**: Automatic code compilation, execution, and validation
-- **Custom Test Integration**: Configurable test commands for evolution validation
+- **Custom Test Integration**: Configurable test commands for both standard and evolution validation
 - **Flexible AI Backend**: Supports OpenAI API, local models, or custom endpoints
 - **Local AI Server**: Built-in Flask server for running HuggingFace models locally
 - **Configurable Output**: Multiple verbosity levels and colored terminal output
@@ -125,7 +125,9 @@ fast_model_api_key = ""  # No API key needed for local server
 ### Evolution Mode Settings
 - `enable_evolution`: Enable code evolution mode (true/false)
 - `evolution_file_path`: Path to the C file containing evolution markers
-- `test_command`: Custom command to test evolved code (use `{file}` placeholder)
+
+### Testing Configuration
+- `test_command`: Custom command to test code (use `{file}` placeholder, works in both standard and evolution modes)
 
 ### Execution Options
 - `args`: Additional compilation/execution arguments
@@ -182,7 +184,7 @@ Beta Evolve automatically detects and recovers from:
 - Runtime execution with timeout protection
 - Memory leak detection
 - Comprehensive test case validation
-- Custom test command support for evolution mode
+- Custom test command support for both standard and evolution modes
 
 ### Extensibility
 - Pluggable AI backends (OpenAI, local models, custom APIs)

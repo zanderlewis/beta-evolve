@@ -355,8 +355,8 @@ double evaluate_evolution_fitness(const char *file_path, config_t *config) {
     
     double fitness = 0.0;
     
-    // Use custom test command if specified and evolution is enabled
-    if (config->enable_evolution && strlen(config->test_command) > 0) {
+    // Use custom test command if specified
+    if (strlen(config->test_command) > 0) {
         test_result_t result = run_custom_test(config->test_command, file_path, config);
         
         // Base fitness components
@@ -654,7 +654,7 @@ test_result_t run_custom_test(const char *test_command, const char *file_path, c
         }
         
         // Create a temporary .c file
-        snprintf(temp_c_file, sizeof(temp_c_file), "%s/beta_evolve_evolved_%ld.c", temp_dir, time(NULL));
+        snprintf(temp_c_file, sizeof(temp_c_file), "%s/test.c", temp_dir);
         
         // Copy content from .evolved file to .c file
         FILE *evolved_file = fopen(file_path, "r");

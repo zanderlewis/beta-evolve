@@ -94,10 +94,10 @@ echo "Implement a NASA-grade binary search with error handling" > my_problem.pro
 Beta Evolve includes a Flask server for running HuggingFace models locally:
 ```bash
 # Start local server with a model
-python server.py microsoft/DialoGPT-medium --port 5000
+uv run tools/server.py microsoft/DialoGPT-medium --port 5000
 
 # Use custom temperature
-python server.py google/flan-t5-large --temperature 0.7 --port 8080
+uv run tools/server.py google/flan-t5-large --temperature 0.7 --port 8080
 
 # Configure Beta Evolve to use local server
 # In config.toml:
@@ -209,5 +209,4 @@ Beta Evolve automatically detects and recovers from:
 
 ### Optional Dependencies
 - Python 3.7+ (for local AI server)
-- HuggingFace Transformers (for local models): `pip install transformers torch`
-- Flask (for web interface): `pip install flask`
+- UV (for running Python scripts)

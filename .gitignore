@@ -45,3 +45,10 @@ conversation_*.log
 # Virtual environments
 venv/
 .venv/
+
+# Lock files
+*.lock
+
+# Python cache
+__pycache__/
+*.pyc

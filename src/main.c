@@ -23,7 +23,7 @@ int run_collaboration(const char *problem, config_t *config) {
                 conv.evolution.evolution_enabled = 1;
                 
                 // Set the current solution to the file content
-                if (strlen(file_content) < config->max_code_size) {
+                if (strlen(file_content) < (unsigned long)config->max_code_size) {
                     strcpy(conv.current_solution, file_content);
                 }
             }
@@ -248,14 +248,67 @@ int run_collaboration(const char *problem, config_t *config) {
         char filename[256];
         time_t now = time(NULL);
         struct tm *tm_info = localtime(&now);
-        strftime(filename, sizeof(filename), "solution_%Y%m%d_%H%M%S.c", tm_info);
+        snprintf(filename, sizeof(filename), "solution_%04d%02d%02d_%02d%02d%02d.c",
+                tm_info->tm_year + 1900, tm_info->tm_mon + 1, tm_info->tm_mday,
+                tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec);
         
-        FILE *solution_file = fopen(filename, "w");
-        if (solution_file) {
-            fprintf(solution_file, "/*\n * Beta Evolve Generated Solution\n * Problem: %s\n */\n\n", problem);
-            fprintf(solution_file, "%s\n", conv.current_solution);
-            fclose(solution_file);
+        FILE *file = fopen(filename, "w");
+        if (file) {
+            fprintf(file, "%s\n", conv.current_solution);
+            fclose(file);
             log_message(config, VERBOSITY_NORMAL, "%s💾 Solution saved to: %s%s\n", C_SUCCESS, filename, C_RESET);
+            
+            // Run final comprehensive evaluation if enabled
+            if (config->enable_comprehensive_evaluation) {
+                log_message(config, VERBOSITY_NORMAL, "%s🏁 Running final comprehensive evaluation...%s\n", C_INFO, C_RESET);
+                
+                evaluation_result_t final_eval = evaluate_code_comprehensive(
+                    filename, conv.current_solution, &config->eval_criteria, config);
+                
+                // Display final evaluation summary
+                printf("\n%s=== FINAL EVALUATION SUMMARY ===%s\n", C_HEADER, C_RESET);
+                printf("%sOverall Score:%s %.1f/100\n", C_EMPHASIS, C_RESET, final_eval.overall_score);
+                printf("%sCorrectness:%s %.1f/100\n", C_EMPHASIS, C_RESET, final_eval.correctness_score);
+                printf("%sPerformance:%s %.1f/100\n", C_EMPHASIS, C_RESET, final_eval.performance_score);
+                printf("%sCode Quality:%s %.1f/100\n", C_EMPHASIS, C_RESET, final_eval.quality_score);
+                
+                if (final_eval.passed_criteria) {
+                    printf("%s✅ All evaluation criteria met!%s\n", C_SUCCESS, C_RESET);
+                } else {
+                    printf("%s⚠️  Some criteria not met - see evaluation report for details%s\n", C_WARNING, C_RESET);
+                }
+                
+                // Save final evaluation report
+                if (final_eval.detailed_report && strlen(config->evaluation_output_file) > 0) {
+                    char final_report_path[1024];
+                    snprintf(final_report_path, sizeof(final_report_path), "final_%s", config->evaluation_output_file);
+                    
+                    FILE *report_file = fopen(final_report_path, "w");
+                    if (report_file) {
+                        fprintf(report_file, "%s", final_eval.detailed_report);
+                        fclose(report_file);
+                        printf("%s📄 Final evaluation report saved to: %s%s\n", C_INFO, final_report_path, C_RESET);
+                    }
+                }
+                
+                // Show performance summary
+                if (config->verbosity >= VERBOSITY_NORMAL) {
+                    printf("\n%sPerformance Summary:%s\n", C_EMPHASIS, C_RESET);
+                    printf("  Execution Time: %.2f ms\n", final_eval.performance.execution_time_ms);
+                    printf("  Memory Usage: %ld KB\n", final_eval.performance.memory_usage_kb);
+                    printf("  Throughput: %.1f ops/sec\n", final_eval.performance.throughput);
+                    
+                    printf("\n%sCode Quality Summary:%s\n", C_EMPHASIS, C_RESET);
+                    printf("  Lines of Code: %d\n", final_eval.quality.lines_of_code);
+                    printf("  Cyclomatic Complexity: %d\n", final_eval.quality.cyclomatic_complexity);
+                    printf("  Test Coverage: %.1f%%\n", final_eval.quality.test_coverage_percent);
+                    printf("  Maintainability Index: %.1f/100\n", final_eval.quality.maintainability_index);
+                }
+                
+                cleanup_evaluation_result(&final_eval);
+            }
+        } else {
+            log_message(config, VERBOSITY_NORMAL, "%s❌ Failed to save solution to file%s\n", C_ERROR, C_RESET);
         }
     }
     
@@ -279,6 +332,10 @@ int main(int argc, char *argv[]) {
         "Number of collaboration iterations", false, 10);
     argparse_add_flag(parser, "verbose", 'v', 
         "Enable verbose output");
+    argparse_add_flag(parser, "debug", 'd', 
+        "Enable debug output with detailed logs");
+    argparse_add_flag(parser, "evaluation", 'e', 
+        "Enable comprehensive evaluation with performance and quality analysis");
     argparse_add_flag(parser, "help", 'h', 
         "Show this help message");
     

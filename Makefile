@@ -6,7 +6,7 @@ UNAME_S := $(shell uname -s)
 # Compiler settings
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99 -Iinclude $(shell pkg-config --cflags libcjson)
-LDFLAGS = $(shell pkg-config --libs libcjson)
+LDFLAGS = $(shell pkg-config --libs libcjson) -lm
 
 # Directory structure
 SRCDIR = src

@@ -1,9 +1,0 @@
-flask
-transformers
-torch
-numpy
-tokenizers
-accelerate
-# For downloading models from Hugging Face
-# via the command line
-huggingface-hub

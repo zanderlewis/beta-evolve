@@ -24,6 +24,25 @@ iterations = 10
 # The {file} placeholder will be replaced with the actual file path
 # test_command = "gcc -o /tmp/test {file} && /tmp/test"
 
+# Evaluation Configuration
+# Enable comprehensive evaluation with performance and quality analysis
+enable_comprehensive_evaluation = true
+save_evaluation_history = true
+evaluation_output_file = "evaluation_report.txt"
+
+# Evaluation Criteria and Thresholds
+min_performance_score = 70.0        # Minimum acceptable performance score (0-100)
+max_execution_time_ms = 1000.0       # Maximum allowed execution time in milliseconds
+max_memory_usage_kb = 10240          # Maximum allowed memory usage in KB (10MB)
+min_test_coverage_percent = 80.0     # Minimum required test coverage percentage
+max_cyclomatic_complexity = 10       # Maximum allowed cyclomatic complexity
+target_throughput = 1000.0           # Target operations per second
+
+# Profiling Options
+enable_performance_profiling = true  # Enable detailed performance measurement
+enable_memory_profiling = true       # Enable memory usage analysis
+enable_quality_analysis = true       # Enable code quality analysis
+
 # The following parameters are optional and will use defaults if not specified
 max_response_size = 10240
 max_prompt_size = 4096

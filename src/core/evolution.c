@@ -555,17 +555,100 @@ void evolve_code_regions(conversation_t *conv, code_evolution_t *evolution) {
                    C_INFO, current_fitness, evolution->current_generation, C_RESET);
     }
     
-    evolution->current_generation++;
-    evolution->total_generations++;
+    // Comprehensive evaluation if enabled
+    if (conv->config->enable_comprehensive_evaluation && conv->current_solution && 
+        strlen(conv->current_solution) > 0) {
+        
+        log_message(conv->config, VERBOSITY_NORMAL, "%s📊 Running comprehensive evaluation...%s\n", C_INFO, C_RESET);
+        
+        char evolved_file_path[1024];
+        snprintf(evolved_file_path, sizeof(evolved_file_path), "%s.evolved", conv->config->evolution_file_path);
+        
+        evaluation_result_t eval_result = evaluate_code_comprehensive(
+            evolved_file_path, conv->current_solution, &conv->config->eval_criteria, conv->config);
+        
+        // Update fitness score based on comprehensive evaluation
+        for (int i = 0; i < evolution->region_count; i++) {
+            evolution->regions[i].fitness_score = eval_result.overall_score / 100.0;
+        }
+        
+        // Log evaluation results
+        log_message(conv->config, VERBOSITY_NORMAL, 
+                   "%s📊 Comprehensive Score: %.1f/100 (Correctness: %.1f, Performance: %.1f, Quality: %.1f)%s\n",
+                   C_INFO, eval_result.overall_score, eval_result.correctness_score, 
+                   eval_result.performance_score, eval_result.quality_score, C_RESET);
+        
+        if (eval_result.passed_criteria) {
+            log_message(conv->config, VERBOSITY_NORMAL, "%s✅ All evaluation criteria met!%s\n", C_SUCCESS, C_RESET);
+        } else {
+            log_message(conv->config, VERBOSITY_NORMAL, "%s⚠️  Some criteria not met%s\n", C_WARNING, C_RESET);
+        }
+        
+        // Show detailed metrics in verbose mode
+        if (conv->config->verbosity >= VERBOSITY_VERBOSE) {
+            log_message(conv->config, VERBOSITY_VERBOSE, 
+                       "%sPerformance: %.2fms execution, %ldKB memory, %.1f ops/sec%s\n",
+                       C_INFO, eval_result.performance.execution_time_ms, 
+                       eval_result.performance.memory_usage_kb, eval_result.performance.throughput, C_RESET);
+            
+            log_message(conv->config, VERBOSITY_VERBOSE, 
+                       "%sCode Quality: %d complexity, %.1f%% coverage, %.1f maintainability%s\n",
+                       C_INFO, eval_result.quality.cyclomatic_complexity, 
+                       eval_result.quality.test_coverage_percent, 
+                       eval_result.quality.maintainability_index, C_RESET);
+        }
+        
+        // Save evaluation to history
+        if (conv->config->save_evaluation_history) {
+            save_evaluation_history(evolution, &eval_result);
+        }
+        
+        // Save detailed report to file
+        if (eval_result.detailed_report && strlen(conv->config->evaluation_output_file) > 0) {
+            FILE *report_file = fopen(conv->config->evaluation_output_file, "w");
+            if (report_file) {
+                fprintf(report_file, "%s", eval_result.detailed_report);
+                fclose(report_file);
+                log_message(conv->config, VERBOSITY_NORMAL, 
+                           "%s📄 Evaluation report saved to: %s%s\n", 
+                           C_INFO, conv->config->evaluation_output_file, C_RESET);
+            }
+        }
+        
+        // Show recommendations in debug mode
+        if (conv->config->verbosity >= VERBOSITY_DEBUG && eval_result.recommendations) {
+            log_message(conv->config, VERBOSITY_DEBUG, 
+                       "%sRecommendations:\n%s%s\n", C_INFO, eval_result.recommendations, C_RESET);
+        }
+        
+        // Compare with previous evaluation if available
+        if (evolution->evaluation_count > 1) {
+            evaluation_result_t *prev_eval = &evolution->evaluation_history[evolution->evaluation_count - 2];
+            char *comparison_report = NULL;
+            compare_evaluations(&eval_result, prev_eval, &comparison_report);
+            
+            if (comparison_report && conv->config->verbosity >= VERBOSITY_VERBOSE) {
+                log_message(conv->config, VERBOSITY_VERBOSE, 
+                           "%sEvolution Progress:\n%s%s\n", C_INFO, comparison_report, C_RESET);
+                free(comparison_report);
+            }
+        }
+        
+        cleanup_evaluation_result(&eval_result);
+    }
 }
 
-// Read code file for evolution
+// File I/O functions for evolution system
+
+// Read evolution file content
 char* read_evolution_file(const char *file_path) {
-    if (!file_path || strlen(file_path) == 0) return NULL;
+    if (!file_path || strlen(file_path) == 0) {
+        return NULL;
+    }
     
     FILE *file = fopen(file_path, "r");
     if (!file) {
-        fprintf(stderr, "Error: Cannot open evolution file %s\n", file_path);
+        fprintf(stderr, "Error: Cannot open evolution file: %s\n", file_path);
         return NULL;
     }
     
@@ -579,47 +662,50 @@ char* read_evolution_file(const char *file_path) {
         return NULL;
     }
     
-    // Allocate memory and read file
+    // Allocate buffer and read content
     char *content = malloc(file_size + 1);
     if (!content) {
         fclose(file);
         return NULL;
     }
     
-    size_t read_size = fread(content, 1, file_size, file);
-    content[read_size] = '\0';
-    
+    size_t bytes_read = fread(content, 1, file_size, file);
+    content[bytes_read] = '\0';
     fclose(file);
+    
     return content;
 }
 
-// Write evolved code back to file
+// Write evolved code to file
 int write_evolution_file(const char *file_path, const char *content) {
-    if (!file_path || !content) return -1;
+    if (!file_path || !content) {
+        return -1;
+    }
     
-    // Create evolved filename by appending .evolved to the original file path
+    // Create evolved file path
     char evolved_file_path[1024];
     snprintf(evolved_file_path, sizeof(evolved_file_path), "%s.evolved", file_path);
     
     FILE *file = fopen(evolved_file_path, "w");
     if (!file) {
-        fprintf(stderr, "Error: Cannot write to evolution file %s\n", evolved_file_path);
+        fprintf(stderr, "Error: Cannot create evolved file: %s\n", evolved_file_path);
         return -1;
     }
     
-    size_t content_len = strlen(content);
-    size_t written = fwrite(content, 1, content_len, file);
+    if (fprintf(file, "%s", content) < 0) {
+        fclose(file);
+        return -1;
+    }
     
     fclose(file);
-    
-    return (written == content_len) ? 0 : -1;
+    return 0;
 }
 
-// Execute custom test command
+// Run custom test command on a file
 test_result_t run_custom_test(const char *test_command, const char *file_path, config_t *config) {
     test_result_t result = {0};
     
-    // Allocate dynamic memory for error message and output
+    // Allocate memory for result strings
     result.error_message = malloc(config->max_response_size);
     result.output = malloc(config->max_response_size);
     
@@ -631,100 +717,56 @@ test_result_t run_custom_test(const char *test_command, const char *file_path, c
         return result;
     }
     
-    // Initialize the strings
+    // Initialize strings
     memset(result.error_message, 0, config->max_response_size);
     memset(result.output, 0, config->max_response_size);
     
-    if (!test_command || strlen(test_command) == 0) {
+    if (!test_command || !file_path || strlen(test_command) == 0) {
         snprintf(result.error_message, config->max_response_size, 
-                "No test command specified");
+                "Invalid test command or file path");
         return result;
     }
     
-    // Check if the file has a .evolved extension and create a temporary .c file if needed
-    char *actual_file_path = (char*)file_path;
-    char temp_c_file[1024] = {0};
-    int created_temp_file = 0;
+    // Replace {file} placeholder with actual file path
+    char expanded_command[2048];
+    char *placeholder = strstr(test_command, "{file}");
     
-    if (strstr(file_path, ".evolved")) {
-        // Get system temp directory
-        const char* temp_dir = getenv("TMPDIR");
-        if (!temp_dir) {
-            temp_dir = "/tmp";  // fallback for Unix systems
-        }
+    if (placeholder) {
+        // Calculate lengths for safe string manipulation
+        size_t prefix_len = placeholder - test_command;
+        size_t suffix_len = strlen(placeholder + 6); // 6 = strlen("{file}")
         
-        // Create a temporary .c file
-        snprintf(temp_c_file, sizeof(temp_c_file), "%s/test.c", temp_dir);
-        
-        // Copy content from .evolved file to .c file
-        FILE *evolved_file = fopen(file_path, "r");
-        if (!evolved_file) {
+        // Check if the expanded command will fit
+        if (prefix_len + strlen(file_path) + suffix_len >= sizeof(expanded_command)) {
             snprintf(result.error_message, config->max_response_size, 
-                    "Failed to open evolved file: %s", file_path);
+                    "Test command too long after expansion");
             return result;
         }
         
-        FILE *temp_file = fopen(temp_c_file, "w");
-        if (!temp_file) {
-            fclose(evolved_file);
-            snprintf(result.error_message, config->max_response_size, 
-                    "Failed to create temporary C file: %s", temp_c_file);
-            return result;
-        }
-        
-        // Copy content line by line
-        char buffer[4096];
-        while (fgets(buffer, sizeof(buffer), evolved_file)) {
-            fputs(buffer, temp_file);
-        }
-        
-        fclose(evolved_file);
-        fclose(temp_file);
-        
-        actual_file_path = temp_c_file;
-        created_temp_file = 1;
-        
-        log_message(config, VERBOSITY_DEBUG, "Created temporary C file: %s\n", temp_c_file);
-    }
-    
-    // Build the command, replacing {file} placeholder with actual file path
-    char command[2048];
-    if (strstr(test_command, "{file}")) {
-        // Replace {file} with the actual file path
-        char *command_copy = strdup(test_command);
-        char *placeholder = strstr(command_copy, "{file}");
-        if (placeholder) {
-            *placeholder = '\0';
-            snprintf(command, sizeof(command), "%s%s%s", 
-                    command_copy, actual_file_path, placeholder + 6);
-        } else {
-            strcpy(command, test_command);
-        }
-        free(command_copy);
+        // Build expanded command
+        strncpy(expanded_command, test_command, prefix_len);
+        expanded_command[prefix_len] = '\0';
+        strcat(expanded_command, file_path);
+        strcat(expanded_command, placeholder + 6);
     } else {
-        // No placeholder, use command as-is
-        strcpy(command, test_command);
+        // No placeholder, use command as-is with file path appended
+        snprintf(expanded_command, sizeof(expanded_command), "%s %s", test_command, file_path);
     }
     
-    log_message(config, VERBOSITY_DEBUG, "Executing test command: %s\n", command);
-    
-    // Execute the command and capture output
-    FILE* pipe = popen(command, "r");
+    // Execute the test command and capture output
+    FILE *pipe = popen(expanded_command, "r");
     if (!pipe) {
-        if (created_temp_file) {
-            unlink(temp_c_file);
-        }
         snprintf(result.error_message, config->max_response_size, 
-                "Failed to execute test command: %s", command);
+                "Failed to execute test command: %s", expanded_command);
         return result;
     }
     
-    // Read output
+    // Read command output
     size_t total_read = 0;
     char buffer[1024];
-    while (fgets(buffer, sizeof(buffer), pipe) && total_read < config->max_response_size - 1) {
+    while (fgets(buffer, sizeof(buffer), pipe) && total_read < (size_t)config->max_response_size - 1) {
         size_t len = strlen(buffer);
-        if (total_read + len < config->max_response_size - 1) {
+        if (total_read + len < (size_t)config->max_response_size - 1) {
             strcpy(result.output + total_read, buffer);
             total_read += len;
         } else {
@@ -733,25 +775,39 @@ test_result_t run_custom_test(const char *test_command, const char *file_path, c
     }
     result.output[total_read] = '\0';
     
+    // Get exit code
     int exit_code = pclose(pipe);
     int actual_exit_code = WEXITSTATUS(exit_code);
     
-    // Clean up temporary file if created
-    if (created_temp_file) {
-        unlink(temp_c_file);
-        log_message(config, VERBOSITY_DEBUG, "Cleaned up temporary C file: %s\n", temp_c_file);
-    }
-    
     // Determine test results based on exit code
-    result.execution_ok = (actual_exit_code == 0);
-    result.compilation_ok = 1; // Assume compilation ok if we got to execution
-    result.syntax_ok = 1;      // Assume syntax ok if we got to execution
-    
-    if (!result.execution_ok) {
-        if (strlen(result.output) == 0) {
+    if (actual_exit_code == 0) {
+        result.syntax_ok = 1;
+        result.compilation_ok = 1;
+        result.execution_ok = 1;
+    } else {
+        // Parse output to determine what failed
+        const char *output_lower = result.output;
+        
+        // Check for common compilation errors
+        if (strstr(output_lower, "error:") || strstr(output_lower, "undefined reference") ||
+            strstr(output_lower, "fatal error") || strstr(output_lower, "cannot find")) {
+            result.syntax_ok = 0;
+            result.compilation_ok = 0;
+            result.execution_ok = 0;
             snprintf(result.error_message, config->max_response_size, 
-                    "Test command failed with exit code %d", actual_exit_code);
+                    "Compilation failed: %s", result.output);
+        } else if (strstr(output_lower, "segmentation fault") || strstr(output_lower, "abort") ||
+                   strstr(output_lower, "core dumped")) {
+            result.syntax_ok = 1;
+            result.compilation_ok = 1;
+            result.execution_ok = 0;
+            snprintf(result.error_message, config->max_response_size, 
+                    "Runtime error: %s", result.output);
         } else {
+            // Assume compilation succeeded but test failed
+            result.syntax_ok = 1;
+            result.compilation_ok = 1;
+            result.execution_ok = 0;
             snprintf(result.error_message, config->max_response_size, 
                     "Test failed (exit code %d): %s", actual_exit_code, result.output);
         }

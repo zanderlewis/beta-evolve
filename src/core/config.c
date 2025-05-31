@@ -237,6 +237,82 @@ int load_config(config_t *config, const char *config_file) {
         printf("Info: Evolution mode enabled\n");
     }
 
+    // Load evaluation configuration
+    toml_datum_t enable_comprehensive_evaluation = toml_bool_in(toml, "enable_comprehensive_evaluation");
+    if (enable_comprehensive_evaluation.ok) {
+        config->enable_comprehensive_evaluation = enable_comprehensive_evaluation.u.b;
+    } else {
+        config->enable_comprehensive_evaluation = 0; // Default to disabled
+    }
+
+    toml_datum_t save_evaluation_history = toml_bool_in(toml, "save_evaluation_history");
+    if (save_evaluation_history.ok) {
+        config->save_evaluation_history = save_evaluation_history.u.b;
+    } else {
+        config->save_evaluation_history = 1; // Default to enabled
+    }
+
+    toml_datum_t evaluation_output_file = toml_string_in(toml, "evaluation_output_file");
+    if (evaluation_output_file.ok) {
+        strncpy(config->evaluation_output_file, evaluation_output_file.u.s, sizeof(config->evaluation_output_file) - 1);
+        config->evaluation_output_file[sizeof(config->evaluation_output_file) - 1] = '\0';
+        free(evaluation_output_file.u.s);
+    } else {
+        strcpy(config->evaluation_output_file, "evaluation_report.txt");
+    }
+
+    // Load evaluation criteria
+    init_evaluation_criteria(&config->eval_criteria);
+    
+    toml_datum_t min_performance_score = toml_double_in(toml, "min_performance_score");
+    if (min_performance_score.ok) {
+        config->eval_criteria.min_performance_score = min_performance_score.u.d;
+    }
+
+    toml_datum_t max_execution_time_ms = toml_double_in(toml, "max_execution_time_ms");
+    if (max_execution_time_ms.ok) {
+        config->eval_criteria.max_execution_time_ms = max_execution_time_ms.u.d;
+    }
+
+    toml_datum_t max_memory_usage_kb = toml_int_in(toml, "max_memory_usage_kb");
+    if (max_memory_usage_kb.ok) {
+        config->eval_criteria.max_memory_usage_kb = max_memory_usage_kb.u.i;
+    }
+
+    toml_datum_t min_test_coverage_percent = toml_double_in(toml, "min_test_coverage_percent");
+    if (min_test_coverage_percent.ok) {
+        config->eval_criteria.min_test_coverage_percent = min_test_coverage_percent.u.d;
+    }
+
+    toml_datum_t max_cyclomatic_complexity = toml_int_in(toml, "max_cyclomatic_complexity");
+    if (max_cyclomatic_complexity.ok) {
+        config->eval_criteria.max_cyclomatic_complexity = max_cyclomatic_complexity.u.i;
+    }
+
+    toml_datum_t target_throughput = toml_double_in(toml, "target_throughput");
+    if (target_throughput.ok) {
+        config->eval_criteria.target_throughput = target_throughput.u.d;
+    }
+
+    toml_datum_t enable_performance_profiling = toml_bool_in(toml, "enable_performance_profiling");
+    if (enable_performance_profiling.ok) {
+        config->eval_criteria.enable_performance_profiling = enable_performance_profiling.u.b;
+    }
+
+    toml_datum_t enable_memory_profiling = toml_bool_in(toml, "enable_memory_profiling");
+    if (enable_memory_profiling.ok) {
+        config->eval_criteria.enable_memory_profiling = enable_memory_profiling.u.b;
+    }
+
+    toml_datum_t enable_quality_analysis = toml_bool_in(toml, "enable_quality_analysis");
+    if (enable_quality_analysis.ok) {
+        config->eval_criteria.enable_quality_analysis = enable_quality_analysis.u.b;
+    }
+
+    if (config->enable_comprehensive_evaluation) {
+        printf("Info: Comprehensive evaluation enabled\n");
+    }
+
     toml_free(toml);
     return 0;
 }
